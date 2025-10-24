@@ -1,3 +1,21 @@
+# ─────────────────────────────────────────────
+# Project-specific ignores
+# ─────────────────────────────────────────────
+
+# Local data files (not committed)
+data/
+*.tsv
+*.csv
+
+# Local persistent ChromaDB stores
+chroma_dir/
+
+# Model checkpoints or cached embeddings
+*.pt
+*.bin
+
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
