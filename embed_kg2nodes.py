@@ -64,7 +64,7 @@ def vprint(message):
     """Prints messages only when verbose mode is enabled."""
     if verbose.lower() == "yes":
         timestamp = datetime.now().strftime("[%Y-%m-%d %H:%M:%S]")
-        print(f"{timestamp} [VERBOSE] {message}")
+        print(f"\t[VERBOSE] {timestamp} {message}")
 
 #####################################################################
 # GPU device setup and model loading                                #
@@ -81,7 +81,7 @@ path = os.getcwd()
 script_path = os.path.dirname(__file__)
 path = os.path.abspath(os.path.join(script_path, os.pardir))
 input_file = ""
-output_dir = f"{path}/chromadb"
+output_dir = f"{os.getcwd()}/chromadb"
 collection = ""
 vector_store = ""
 mode = "new"  # default behavior if user doesn't specify
@@ -127,64 +127,64 @@ for opt, arg in opts:
         sys.exit()
     elif opt == '-v':
         verbose = "Yes"
-        vprint("Verbose mode activated.")
     elif opt in ("-i", "--input_file"):
         input_file = arg
-        vprint(f"Input file set to: {input_file}")
     elif opt in ("-o", "--output_dir"):
         output_dir = arg
-        vprint(f"Output directory set to: {output_dir}")
     elif opt in ("-c", "--collection"):
         collection = arg
-        vprint(f"Collection name set to: {collection}")
     elif opt in ("-m", "--mode"):
         mode = arg.lower()
-        vprint(f"Collection handling mode set to: {mode}")
+
+vprint("Verbose mode activated.")
+vprint(f" Input file set to: {input_file}")
+vprint(f" Collection name set to: {collection}")
+vprint(f" Collection handling mode set to: {mode}")
+vprint(f" Output directory set to: {output_dir}")
 
 #####################################################################
 # Validate required inputs                                          #
 #####################################################################
 if not input_file:
-    print("\nError: No input file specified.")
+    print("\n[ERROR] No input file specified.")
     print_help()
     sys.exit(1)
 
 if not collection:
-    print("\nError: No collection specified.")
+    print("\n[ERROR] No collection specified.")
     print_help()
     sys.exit(1)
 
 if mode not in ["add", "overwrite", "new"]:
-    print(f"\nError: Invalid mode '{mode}'. Use one of: add, overwrite, new.\n")
+    print(f"\n[ERROR] Invalid mode '{mode}'. Use one of: add, overwrite, new.\n")
     print_help()
     sys.exit(1)
+
+
 
 #####################################################################
 # Connect to Chroma and handle collection                           #
 #####################################################################
 vprint("Attempting connection to Chroma client...")
+os.makedirs(output_dir, exist_ok=True)
 
-chroma_client = chromadb.Client(
-    chromadb.config.Settings(
-        persist_directory=f"{output_dir}"
-    )
-)
+chroma_client = chromadb.PersistentClient(path=output_dir)
 
 try:
     exists = chroma_client.get_collection(name=collection)
     collection_exists = True
-    vprint(f"Collection '{collection}' found in Chroma database.")
+    vprint(f" Collection '{collection}' found in Chroma database.")
 except Exception:
     collection_exists = False
-    vprint(f"Collection '{collection}' does not exist.")
+    vprint(f" Collection '{collection}' does not exist.")
 
 
 if mode == "new":
     if collection_exists:
-        print(f"Error: Collection '{collection}' already exists. Use a different name, or run with --mode overwrite to replace it.")
+        print(f"\t[ERROR] Collection '{collection}' already exists. Use a different name, or run with --mode overwrite to replace it.")
         sys.exit(1)
     else:
-        print(f"Creating new collection: {collection}")
+        print(f"\t[INFO] Creating new collection: {collection}")
         vector_store = chroma_client.create_collection(
             name=collection, 
             metadata={"source": "kg2-node-descriptions"},
@@ -198,15 +198,18 @@ if mode == "new":
                 }
             }
         )
-        vprint(f"New collection '{collection}' created successfully.")
+        if vector_store != "":
+            vprint(f" New collection '{collection}' created successfully.")
+        else: 
+            print(f"\t[ERROR] vector store {collection} not created")
 
 elif mode == "add" and collection_exists:
-    print(f"Adding to existing collection: {collection}")
+    print(f"\t[INFO] Adding to existing collection: {collection}")
     vector_store = exists
-    vprint("Reusing existing collection without modification.")
+    
 
 elif mode == "overwrite" and collection_exists:
-    print(f"Overwriting collection: {collection}")
+    print(f"\t[INFO] Overwriting collection: {collection}")
     chroma_client.delete_collection(name=collection)
     vector_store = chroma_client.create_collection(
             name=collection, 
@@ -223,51 +226,52 @@ elif mode == "overwrite" and collection_exists:
     vprint("Collection deleted and recreated successfully.")
 
 elif mode in ("add", "overwrite") and not collection_exists:
-    print(f"Error: Collection '{collection}' not found for mode '{mode}'. Collection must exist to overwrite or add to it.")
+    print(f"[ERROR] Collection '{collection}' not found for mode '{mode}'. Collection must exist to overwrite or add to it.")
     sys.exit(1)
 
 else:
-    print(f"Error: Unknown mode '{mode}'. Must be one of 'add', 'overwrite', or 'new'.")
+    print(f"[ERROR] Unknown mode '{mode}'. Must be one of 'add', 'overwrite', or 'new'.")
     sys.exit(1)
 
 
 #####################################################################
 # Start the run                                                     #
 #####################################################################
-print("\n\tStart of Run!", file=sys.stdout, flush=True)
-vprint("Run started successfully. Beginning data processing...")
-
-print("\tProcessing Data: ", file=sys.stdout, flush=True)
+print("\n\t[INFO] Start of Run!", file=sys.stdout, flush=True)
 
 
 # ===============================================================
-# Read TSV file: UMLS_ID, Name, Description
+# Read TSV file: ID, Name, Description
 # ===============================================================
 documents = []
+input_path = f"/{input_file}"
 if input_file:
+    vprint("Opening input file to get data")
     with open(input_file, 'r') as f:
         for line in f:
             parts = line.strip().split('\t')
             if len(parts) >= 3:
-                umls_id, name, description = parts[0], parts[1], parts[2]
-                documents.append((umls_id, name, description))
+                id, name, description = parts[0], parts[1], parts[2]
+                documents.append((id, name, description))
             elif len(parts) == 2:
-                umls_id, name = parts[0], parts[1]
-                documents.append((umls_id, name, ""))
+                id, name = parts[0], parts[1]
+                documents.append((id, name, ""))
             else:
                 continue
+    if len(documents) > 0: 
+        vprint("Finished processing documents, ready to embed")
+    else: 
+        print(f"\t[ERROR] failed to extract documents from input file")
 
     ids = [f"doc_{i}" for i in range(len(documents))]
-
+    current = 1
     batch_size = 100
+    total = len(documents) // batch_size
+    print("Beginning vector store embeddings. This may take a while....")
     for i in range(0, len(documents), batch_size):
+        vprint(f" Processing batch #{current}/{total}")
         batch = documents[i:i + batch_size]
         batch_ids = ids[i:i + batch_size]
-
-        # ===============================================================
-        # Use only the DESCRIPTION as the embedding source.
-        # If description is empty, fallback to name or CURIE.
-        # ===============================================================
         descriptions = [
             d if d.strip() else f"{u} {n}" for (u, n, d) in batch
         ]
@@ -277,9 +281,6 @@ if input_file:
         # Optional: safety normalization
         desc_vecs = np.array([v / np.linalg.norm(v) for v in desc_vecs])
 
-        # ===============================================================
-        # Store CURIE and Name as metadata, keep description as document
-        # ===============================================================
         metadatas = [{"curie": u, "name": n} for (u, n, _) in batch]
 
         vector_store.add(
@@ -289,15 +290,16 @@ if input_file:
             metadatas=metadatas      # CURIE + name kept for retrieval
         )
 
-        vprint(f"Added batch {i // batch_size + 1} ({len(batch)} docs)")
-
+        vprint(f" Added batch {i // batch_size + 1} ({len(batch)} docs)")
+        current += 1
+    vprint("Finished embedding")
 else:
-    print("\t\tExiting - No input file")
+    print("\t\t[INFO] Exiting - No input file")
 
-
-print("\tEnd of Run!\n", file=sys.stdout, flush=True)
-
-sys.exit()
+print("\t[INFO] End of Run!\n", file=sys.stdout, flush=True)
+vprint(f"[INFO] Vector store saved to: {output_dir}")
+# Give Chroma a brief moment to flush data before exit
+import time; time.sleep(1)
 
 #####################################################################
 #                                                                   #
