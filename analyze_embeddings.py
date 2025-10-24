@@ -60,22 +60,42 @@ import torch
 # Helper Functions
 #####################################################################
 def print_help():
-    print("\nUsage:")
-    print("  analyze_embeddings.py -c <collection> -d <directory> -m <mode> [options]\n")
-    print("\nOptions:")
-    print("  -d, --dir <persist_dir>      Directory containing the persistent Chroma store")
-    print("Modes:")
-    print("  info                         Find concepts semantically similar to the concept named 'lactulose'")
-    print("  similar -q <text>            Query for similar embeddings")
-    print("  pair -a <textA> -b <textB>   Compute cosine similarity between the stored embeddings for two concept names")
-    print("  clusters                     Perform KMeans clustering on the stored embeddings and show top terms per cluster")
-    print("  umap                         2D visualization via UMAP (or t-SNE fallback)")
-    print("\nExamples:")
-    print("  python3 analyze_embeddings.py -c kg2103_bert -d ./chromadb -m info")
-    print("  python3 analyze_embeddings.py -c kg2103_bert -d ./chromadb -m similar -q 'lactulose'")
-    print("  python3 analyze_embeddings.py -c kg2103_bert -d ./chromadb -m pair -a 'lactulose' -b 'sorbitol'")
-    print("  python3 analyze_embeddings.py -c kg2103_bert -d ./chromadb -m clusters")
-    print("  python3 analyze_embeddings.py -c kg2103_bert -d ./chromadb -m umap")
+    print("\n" + "="*70)
+    print(" KG2x Embedding Analysis Tool")
+    print("="*70)
+    print("""
+Usage:
+  python analyze_embeddings.py -c <collection> -d <directory> -m <mode> [options]
+
+Required Arguments:
+  -c, --collection       Name of the Chroma collection to analyze
+  -d, --directory        Path to the persistent ChromaDB store
+  -m, --mode             Operation mode (see below)
+
+Available Modes:
+  info                   Display collection statistics and sample entries
+  similar                Find concepts semantically similar to a query term
+      -q <text>          Query term to search for
+
+  pair                   Compute cosine similarity between two concept names
+      -a <textA>         Concept name A
+      -b <textB>         Concept name B
+
+  clusters               Run PCA → KMeans clustering and print top cluster terms
+  umap                   Generate 2D visualization (UMAP or t-SNE fallback)
+
+Examples:
+  python analyze_embeddings.py -c kg2103 -d ./chromadb -m info
+  python analyze_embeddings.py -c kg2103 -d ./chromadb -m similar -q "lactulose"
+  python analyze_embeddings.py -c kg2103 -d ./chromadb -m pair -a "lactulose" -b "sorbitol"
+  python analyze_embeddings.py -c kg2103 -d ./chromadb -m clusters
+  python analyze_embeddings.py -c kg2103 -d ./chromadb -m umap
+
+Notes:
+  - All modes connect to an existing ChromaDB persistent store.
+  - For visualization modes (clusters/umap), matplotlib and sklearn are required.
+""")
+
     sys.exit()
 
 #####################################################################
@@ -162,7 +182,7 @@ if mode == "info":
     sys.exit()
 
 #####################################################################
-# Mode: Query (SapBERT-only)
+# Mode: Query 
 #####################################################################
 if mode == "query":
     if not query_text:
@@ -171,8 +191,8 @@ if mode == "query":
 
     print(f"\n[INFO] Querying for: \"{query_text}\"")
 
-    # Generate SapBERT embedding only
-    query_vec = sapbert.encode(query_text, normalize_embeddings=True)
+    # Generate BioLinkBERT embedding only
+    query_vec = biolink.encode(query_text, normalize_embeddings=True)
     query_vec /= np.linalg.norm(query_vec)
     query_vec = query_vec.tolist()
 
