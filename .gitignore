@@ -230,3 +230,4 @@ chromadb/
 # PNG's produced by analysis tool 
 *.PNG
 
+!nodes_cleaned.tsv
