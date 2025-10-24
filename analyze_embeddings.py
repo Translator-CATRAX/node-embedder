@@ -130,11 +130,8 @@ except ImportError:
 #####################################################################
 print(f"[INFO] Connecting to ChromaDB...")
 
-client = chromadb.Client(
-    chromadb.config.Settings(
-        persist_directory=f"{directory}"
-    )
-)
+client = chromadb.PersistentClient(path=directory)
+
 
 try:
     collection = client.get_collection(collection_name)
