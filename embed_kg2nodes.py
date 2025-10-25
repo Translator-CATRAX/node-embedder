@@ -43,6 +43,11 @@ import chromadb
 import torch
 from sentence_transformers import SentenceTransformer
 import numpy as np
+from tqdm import tqdm
+import math
+import time
+
+
 
 #####################################################################
 #                                                                   #
@@ -65,6 +70,7 @@ def vprint(message):
     if verbose.lower() == "yes":
         timestamp = datetime.now().strftime("[%Y-%m-%d %H:%M:%S]")
         print(f"\t[VERBOSE] {timestamp} {message}")
+        time.sleep(.5)
 
 #####################################################################
 # GPU device setup and model loading                                #
@@ -136,12 +142,13 @@ for opt, arg in opts:
     elif opt in ("-m", "--mode"):
         mode = arg.lower()
 
-vprint("Verbose mode activated.")
+print("\n\n")
+vprint(" Verbose mode activated.")
 vprint(f" Input file set to: {input_file}")
 vprint(f" Collection name set to: {collection}")
 vprint(f" Collection handling mode set to: {mode}")
 vprint(f" Output directory set to: {output_dir}")
-
+print("\n\n")
 #####################################################################
 # Validate required inputs                                          #
 #####################################################################
@@ -165,7 +172,7 @@ if mode not in ["add", "overwrite", "new"]:
 #####################################################################
 # Connect to Chroma and handle collection                           #
 #####################################################################
-vprint("Attempting connection to Chroma client...")
+vprint(" Attempting connection to Chroma client...")
 os.makedirs(output_dir, exist_ok=True)
 
 chroma_client = chromadb.PersistentClient(path=output_dir)
@@ -184,7 +191,7 @@ if mode == "new":
         print(f"\t[ERROR] Collection '{collection}' already exists. Use a different name, or run with --mode overwrite to replace it.")
         sys.exit(1)
     else:
-        print(f"\t[INFO] Creating new collection: {collection}")
+        print(f"\t[INFO]                           Creating new collection: {collection}")
         vector_store = chroma_client.create_collection(
             name=collection, 
             metadata={"source": "kg2-node-descriptions"},
@@ -204,7 +211,7 @@ if mode == "new":
             print(f"\t[ERROR] vector store {collection} not created")
 
 elif mode == "add" and collection_exists:
-    print(f"\t[INFO] Adding to existing collection: {collection}")
+    print(f"\t[INFO]             Adding to existing collection: {collection}")
     vector_store = exists
     
 
@@ -237,16 +244,15 @@ else:
 #####################################################################
 # Start the run                                                     #
 #####################################################################
-print("\n\t[INFO] Start of Run!", file=sys.stdout, flush=True)
+print("\n\t[INFO]                           Start of Run!", file=sys.stdout, flush=True)
 
 
 # ===============================================================
 # Read TSV file: ID, Name, Description
 # ===============================================================
 documents = []
-input_path = f"/{input_file}"
 if input_file:
-    vprint("Opening input file to get data")
+    vprint(" Opening input file to get data")
     with open(input_file, 'r') as f:
         for line in f:
             parts = line.strip().split('\t')
@@ -258,24 +264,24 @@ if input_file:
                 documents.append((id, name, ""))
             else:
                 continue
-    if len(documents) > 0: 
-        vprint("Finished processing documents, ready to embed")
-    else: 
+    if len(documents) < 1: 
         print(f"\t[ERROR] failed to extract documents from input file")
 
     ids = [f"doc_{i}" for i in range(len(documents))]
-    current = 1
     batch_size = 100
-    total = len(documents) // batch_size
-    print("Beginning vector store embeddings. This may take a while....")
-    for i in range(0, len(documents), batch_size):
-        vprint(f" Processing batch #{current}/{total}")
+    total = math.ceil(len(documents) / batch_size)
+    print("\n\nBeginning vector store embeddings. This may take a while....\n\n")
+    start = time.time()
+    for i in tqdm(range(0, len(documents), batch_size),
+              total=total,
+              desc=f"Embedding batches ({batch_size} docs each)",
+              unit="batch"):
+
         batch = documents[i:i + batch_size]
         batch_ids = ids[i:i + batch_size]
         descriptions = [
-            d if d.strip() else f"{u} {n}" for (u, n, d) in batch
-        ]
-
+            d if d.strip() else f"{u} {n}"
+            for (u, n, d) in batch]
         desc_vecs = biolink.encode(descriptions, normalize_embeddings=True)
 
         # Optional: safety normalization
@@ -290,16 +296,19 @@ if input_file:
             metadatas=metadatas      # CURIE + name kept for retrieval
         )
 
-        vprint(f" Added batch {i // batch_size + 1} ({len(batch)} docs)")
-        current += 1
-    vprint("Finished embedding")
-else:
-    print("\t\t[INFO] Exiting - No input file")
+    vprint(" Finished embedding")
+    end = time.time()
 
-print("\t[INFO] End of Run!\n", file=sys.stdout, flush=True)
-vprint(f"[INFO] Vector store saved to: {output_dir}")
+    elapsed = end - start
+    minutes, seconds = divmod(int(elapsed), 60)
+    vprint(f" Total runtime: {minutes} minute{'s' if minutes != 1 else ''} {seconds} second{'s' if seconds != 1 else ''}")
+else:
+    print("\t[INFO] Exiting - No input file")
+
+print("\t\t\t\n[INFO]                          End of Run!\n", file=sys.stdout, flush=True)
+vprint(f" Vector store saved to: {path}{output_dir}")
 # Give Chroma a brief moment to flush data before exit
-import time; time.sleep(1)
+time.sleep(.5)
 
 #####################################################################
 #                                                                   #
