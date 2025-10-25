@@ -11,10 +11,23 @@ The goal is to generate a reusable, persistent biomedical vector store that supp
 |------|----------|----------------|
 | `embed_kg2nodes.py` | Builds embeddings from KG2 node descriptions and stores them in a persistent ChromaDB collection (locally). | Run once per KG version to generate a new vector store. |
 | `analyze_embeddings.py` | Connects to an existing vector store for validation, inspection, and visualization of the embeddings. | Run after embeddings are generated to explore semantic structure and relationships. |
+| `run_embedder.sh` | Executes the KG2 node embedding pipeline using `nodes_cleaned.tsv` as input. | Intended for quick testing, proof-of-concept runs, and general demonstration. |
 
 ---
 
-## Inputs
+### For `run_embedder.sh`
+
+**Inputs:**  
+- Optional: include the `-v` flag to enable verbose output from the embedding pipeline.  
+  Example:  
+  ```bash
+  bash run_embedder.sh -v
+  ```
+
+**Processing:** 
+- Automatically runs the full KG2 node embedding pipeline using nodes_cleaned.tsv as input.
+-Requires no additional configuration.
+- Ensure nodes_cleaned.tsv is in the same directory as run_embedder.sh before execution.
 
 ### For `embed_kg2nodes.py`
 
