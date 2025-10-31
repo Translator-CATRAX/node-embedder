@@ -17,7 +17,7 @@
 # Fixed parameters
 INPUT_FILE="nodes_cleaned.tsv"
 OUTPUT_DIR="./chromadb"
-COLLECTION="kg2103_test"
+COLLECTION="kg2103"
 MODE="new"
 VERBOSE=""
 
