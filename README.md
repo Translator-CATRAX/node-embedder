@@ -1,7 +1,13 @@
 # KG2 Node Embedding and Analysis Pipeline
 
-This repository contains two coordinated scripts for embedding and analyzing free-text descriptions of KG2 concept nodes using **BioLinkBERT** ([model documentation](https://huggingface.co/michiyasunaga/BioLinkBERT-base)) and **ChromaDB**.  
-The goal is to generate a reusable, persistent biomedical vector store that supports concept canonicalization, cross-reference discovery, and downstream reasoning or visualization.
+![Python](https://img.shields.io/badge/CPython-3.11.14-blue.svg?logo=python&logoColor=white)
+![macOS](https://img.shields.io/badge/macOS-Tahoe_26.0.1-green.svg?logo=apple&logoColor=white)
+![Ubuntu](https://img.shields.io/badge/Ubuntu-22.04-purple.svg?logo=ubuntu&logoColor=white)
+![Hardware](https://img.shields.io/badge/Apple_Silicon-M1_(arm64)-red.svg)
+
+---
+
+This repository contains two coordinated scripts for embedding and analyzing free-text descriptions of KG2 concept nodes using **BioLinkBERT** ([model documentation](https://huggingface.co/michiyasunaga/BioLinkBERT-base)) and **ChromaDB**. The goal is to generate a reusable, persistent biomedical vector store that supports concept canonicalization, cross-reference discovery, and downstream reasoning or visualization.
 
 ---
 
@@ -15,19 +21,43 @@ The goal is to generate a reusable, persistent biomedical vector store that supp
 
 ---
 
-### For `run_embedder.sh`
+## Example Usage
 
-**Inputs:**  
-- Optional: include the `-v` flag to enable verbose output from the embedding pipeline.  
-  Example:  
+### Setup
+```
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt 
+```
+
+### Generate embeddings
+```
+python embed_kg2nodes.py -i nodes_cleaned.tsv -c kg2103 -o chromadb -m new -v
+```
+
+If you'd prefer not to supply arguments to the script, and just want a MVP vector store to kick the tires, instead run: 
+
   ```bash
   bash run_embedder.sh -v
   ```
 
+### Inspect or visualize embeddings
+```
+python analyze_embeddings.py -c kg2103 -d chromadb -m info
+python analyze_embeddings.py -c kg2103 -d chromadb -m similar -q "lactulose"
+python analyze_embeddings.py -c kg2103 -d chromadb -m umap
+```
+
+---
+
+### For `run_embedder.sh`
+
+**Inputs:**  
+- Optional: include the `-v` flag to enable verbose output from the embedding pipeline.  
+
 **Processing:** 
 - Automatically runs the full KG2 node embedding pipeline using nodes_cleaned.tsv as input.
--Requires no additional configuration.
-- Ensure nodes_cleaned.tsv is in the same directory as run_embedder.sh before execution.
+- Requires no additional configuration.
 
 ### For `embed_kg2nodes.py`
 
@@ -78,22 +108,6 @@ The goal is to generate a reusable, persistent biomedical vector store that supp
 - `pair` — Computes cosine similarity between two named concepts.
 - `clusters` — Runs **PCA → KMeans** to identify semantic clusters, outputs representative concepts, and saves cluster visualizations.
 - `umap` — Performs **UMAP** (or t-SNE if UMAP is not installed) dimensionality reduction and generates labeled 2D visualizations of embedding space.
-
----
-
-## Example Usage
-
-### Generate embeddings
-```
-python embed_kg2nodes.py -i nodes_cleaned.tsv -c kg2103 -o chromadb -m new -v
-```
-
-### Inspect or visualize embeddings
-```
-python analyze_embeddings.py -c kg2103 -d chromadb -m info
-python analyze_embeddings.py -c kg2103 -d chromadb -m similar -q "lactulose"
-python analyze_embeddings.py -c kg2103 -d chromadb -m umap
-```
 
 ---
 
